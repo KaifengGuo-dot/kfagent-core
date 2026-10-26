@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-26
+
+### Fixed
+
+- JitPack 构建改用 Maven Wrapper，避开 JitPack 自带 Maven 版本过低导致的 Enforcer 失败。
+
 ## [1.0.0] - 2026-10-26
 
 第一个公开版本。
@@ -31,5 +37,6 @@
 - 不内置重试、上下文裁剪、RAG、分布式锁。
 - `MiniJson` 只覆盖 Chat Completions 所需的 JSON 子集。
 
-[Unreleased]: https://github.com/KaifengGuo-dot/kfagent-core/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/KaifengGuo-dot/kfagent-core/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/KaifengGuo-dot/kfagent-core/releases/tag/v1.0.1
 [1.0.0]: https://github.com/KaifengGuo-dot/kfagent-core/releases/tag/v1.0.0

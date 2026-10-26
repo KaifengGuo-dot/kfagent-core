@@ -10,7 +10,7 @@
 
 如果你只想要“模型 + 工具 + 循环 + 会话”，不想为了一个助手把 Spring AI / LangChain4j 的整棵依赖树搬进业务项目，这个库就是干这个的。
 
-当前版本 1.0.0：核心 API 基本稳定，但还没有大规模生产验证。适合中小型业务助手、内部工具，以及想读源码自己改的场景。
+当前版本 1.0.1：核心 API 基本稳定，但还没有大规模生产验证。适合中小型业务助手、内部工具，以及想读源码自己改的场景。
 
 ## 目录
 
@@ -79,7 +79,7 @@ JDK 17+。当前通过 JitPack 发布，Maven 需要先加仓库：
 <dependency>
     <groupId>com.github.KaifengGuo-dot</groupId>
     <artifactId>kfagent-core</artifactId>
-    <version>v1.0.0</version>
+    <version>v1.0.1</version>
 </dependency>
 ```
 
@@ -91,7 +91,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.github.KaifengGuo-dot:kfagent-core:v1.0.0'
+    implementation 'com.github.KaifengGuo-dot:kfagent-core:v1.0.1'
 }
 ```
 
@@ -382,7 +382,7 @@ io.github.kfagent
 mvn -DskipTests package
 ```
 
-产物是 `target/kfagent-core-1.0.0.jar`（默认还会带一个 sources jar）。本地装到自己的 m2：
+产物是 `target/kfagent-core-1.0.1.jar`（默认还会带一个 sources jar）。本地装到自己的 m2：
 
 ```bash
 mvn -DskipTests install
