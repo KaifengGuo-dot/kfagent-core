@@ -9,7 +9,7 @@ import java.util.Map;
  * <pre>{@code
  * Tool weather = new Tool() {
  *     public ToolSpec spec() {
- *         return ToolSpec.of("weather", "查询天气",
+ *         return new ToolSpec("weather", "查询天气",
  *             SchemaBuilder.object().required("city")
  *                 .property("city", SchemaBuilder.string("城市名")).build());
  *     }

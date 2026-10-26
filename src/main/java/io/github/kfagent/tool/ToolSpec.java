@@ -11,7 +11,7 @@ public record ToolSpec(String name, String description,
     public java.util.Map<String, Object> toWire() {
         java.util.Map<String, Object> fn = new java.util.LinkedHashMap<>();
         fn.put("name", name);
-        fn.put("description", description);
+        fn.put("description", description == null ? "" : description);
         fn.put("parameters", parametersSchema == null
                 ? emptyObject() : parametersSchema);
         java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();

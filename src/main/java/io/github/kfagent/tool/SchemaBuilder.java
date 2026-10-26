@@ -22,7 +22,12 @@ public final class SchemaBuilder {
     private final Map<String, Object> backing = new LinkedHashMap<>();
     private final List<String> required = new ArrayList<>();
 
-    private SchemaBuilder(String type) { backing.put("type", type); }
+    private SchemaBuilder(String type) {
+        backing.put("type", type);
+        if ("object".equals(type)) {
+            backing.put("properties", new LinkedHashMap<String, Object>());
+        }
+    }
 
     public static SchemaBuilder object() { return new SchemaBuilder("object"); }
     public static SchemaBuilder string() { return new SchemaBuilder("string"); }
@@ -36,7 +41,7 @@ public final class SchemaBuilder {
     public static SchemaBuilder bool() { return new SchemaBuilder("boolean"); }
     public static SchemaBuilder array(SchemaBuilder item) {
         SchemaBuilder a = new SchemaBuilder("array");
-        a.backing.put("items", item.backing);
+        a.backing.put("items", item.build());
         return a;
     }
 
@@ -54,14 +59,39 @@ public final class SchemaBuilder {
         @SuppressWarnings("unchecked")
         Map<String, Object> props = (Map<String, Object>)
                 backing.computeIfAbsent("properties", k -> new LinkedHashMap<>());
-        props.put(name, sub.backing);
+        props.put(name, sub.build());
         return this;
     }
 
+    /** 返回 schema 的独立副本，之后继续修改 builder 不会影响已构建的结果。 */
     public Map<String, Object> build() {
         if (!required.isEmpty()) {
             backing.put("required", List.copyOf(required));
         }
-        return backing;
+        return copyMap(backing);
+    }
+
+    private static Map<String, Object> copyMap(Map<String, Object> src) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> e : src.entrySet()) {
+            out.put(e.getKey(), copyValue(e.getValue()));
+        }
+        return out;
+    }
+
+    private static Object copyValue(Object v) {
+        if (v instanceof Map<?, ?> m) {
+            Map<String, Object> out = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> e : m.entrySet()) {
+                out.put(String.valueOf(e.getKey()), copyValue(e.getValue()));
+            }
+            return out;
+        }
+        if (v instanceof List<?> l) {
+            List<Object> out = new ArrayList<>(l.size());
+            for (Object o : l) out.add(copyValue(o));
+            return out;
+        }
+        return v;
     }
 }

@@ -15,8 +15,7 @@ public final class ToolContext {
 
     public Object get(String key) { return attributes.get(key); }
 
-    @SuppressWarnings("unchecked")
-    public <T> T get(String key, Class<T> type) { return (T) attributes.get(key); }
+    public <T> T get(String key, Class<T> type) { return type.cast(attributes.get(key)); }
 
     public static ToolContext empty() { return new ToolContext(Map.of()); }
 }

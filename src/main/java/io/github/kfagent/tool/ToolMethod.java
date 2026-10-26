@@ -7,7 +7,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 标注在普通方法上，配合 {@link MethodTool#of(Object)} 把它包装成一个 {@link Tool}。
+ * 标注在普通方法上，配合 {@link MethodTool#of(Object, String)} 把它包装成一个 {@link Tool}。
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

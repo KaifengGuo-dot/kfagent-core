@@ -1,5 +1,6 @@
 package io.github.kfagent.json;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,16 +14,23 @@ import java.util.Map;
  * 那一小部分 JSON 子集，足够用，且行为可预测。
  *
  * <p>解析结果：JSON object -> {@link LinkedHashMap}，array -> {@link ArrayList}，
- * number -> {@link Double}，string -> {@link String}，true/false -> {@link Boolean}，
+ * 整数 -> {@link Integer} / {@link Long} / {@link BigInteger}（按大小），
+ * 小数或指数 -> {@link Double}，string -> {@link String}，true/false -> {@link Boolean}，
  * null -> {@code null}。
  */
 public final class MiniJson {
+
+    /** 嵌套深度上限，防止畸形输入把解析器递归到 StackOverflowError。 */
+    private static final int MAX_DEPTH = 512;
 
     private MiniJson() {}
 
     // ---------- parse ----------
 
     public static Object parse(String text) {
+        if (text == null) {
+            throw new JsonException("Input is null");
+        }
         Parser p = new Parser(text);
         p.skipWs();
         Object v = p.readValue();
@@ -33,7 +41,6 @@ public final class MiniJson {
         return v;
     }
 
-    @SuppressWarnings("unchecked")
     public static Map<String, Object> parseObject(String text) {
         Object v = parse(text);
         if (!(v instanceof Map)) {
@@ -61,11 +68,18 @@ public final class MiniJson {
         } else if (v instanceof Boolean b) {
             sb.append(b.booleanValue());
         } else if (v instanceof Number n) {
-            double d = n.doubleValue();
-            if (d == Math.rint(d) && !Double.isInfinite(d) && !Double.isNaN(d)
-                    && Math.abs(d) < 1e15) {
-                sb.append((long) d);
+            if (v instanceof Double || v instanceof Float) {
+                double d = n.doubleValue();
+                if (Double.isNaN(d) || Double.isInfinite(d)) {
+                    throw new JsonException("Non-finite number cannot be serialized: " + n);
+                }
+                if (d == Math.rint(d) && Math.abs(d) < 1e15) {
+                    sb.append((long) d);
+                } else {
+                    sb.append(n.toString());
+                }
             } else {
+                // Integer / Long / BigInteger / BigDecimal 等按原样输出，不丢精度
                 sb.append(n.toString());
             }
         } else if (v instanceof Map<?, ?> m) {
@@ -107,7 +121,8 @@ public final class MiniJson {
                 case '\b' -> sb.append("\\b");
                 case '\f' -> sb.append("\\f");
                 default -> {
-                    if (c < 0x20) {
+                    // 控制字符和代理项必须转义，否则可能产生非法 JSON / 非法 UTF-8
+                    if (c < 0x20 || Character.isSurrogate(c)) {
                         sb.append(String.format("\\u%04x", (int) c));
                     } else {
                         sb.append(c);
@@ -123,6 +138,7 @@ public final class MiniJson {
     private static final class Parser {
         final String s;
         int pos = 0;
+        int depth = 0;
 
         Parser(String s) { this.s = s; }
 
@@ -152,38 +168,48 @@ public final class MiniJson {
         }
 
         private Map<String, Object> readObject() {
-            expect('{');
-            Map<String, Object> map = new LinkedHashMap<>();
-            skipWs();
-            if (peek() == '}') { pos++; return map; }
-            while (true) {
+            enter();
+            try {
+                expect('{');
+                Map<String, Object> map = new LinkedHashMap<>();
                 skipWs();
-                String key = readString();
-                skipWs();
-                expect(':');
-                Object v = readValue();
-                map.put(key, v);
-                skipWs();
-                char c = next();
-                if (c == '}') break;
-                if (c != ',') throw new JsonException("Expected ',' or '}' at " + pos);
+                if (peek() == '}') { pos++; return map; }
+                while (true) {
+                    skipWs();
+                    String key = readString();
+                    skipWs();
+                    expect(':');
+                    Object v = readValue();
+                    map.put(key, v);
+                    skipWs();
+                    char c = next();
+                    if (c == '}') break;
+                    if (c != ',') throw new JsonException("Expected ',' or '}' at " + pos);
+                }
+                return map;
+            } finally {
+                depth--;
             }
-            return map;
         }
 
         private List<Object> readArray() {
-            expect('[');
-            List<Object> list = new ArrayList<>();
-            skipWs();
-            if (peek() == ']') { pos++; return list; }
-            while (true) {
-                list.add(readValue());
+            enter();
+            try {
+                expect('[');
+                List<Object> list = new ArrayList<>();
                 skipWs();
-                char c = next();
-                if (c == ']') break;
-                if (c != ',') throw new JsonException("Expected ',' or ']' at " + pos);
+                if (peek() == ']') { pos++; return list; }
+                while (true) {
+                    list.add(readValue());
+                    skipWs();
+                    char c = next();
+                    if (c == ']') break;
+                    if (c != ',') throw new JsonException("Expected ',' or ']' at " + pos);
+                }
+                return list;
+            } finally {
+                depth--;
             }
-            return list;
         }
 
         private String readString() {
@@ -194,6 +220,7 @@ public final class MiniJson {
                 char c = s.charAt(pos++);
                 if (c == '"') break;
                 if (c == '\\') {
+                    if (atEnd()) throw new JsonException("Unterminated escape sequence");
                     char e = s.charAt(pos++);
                     switch (e) {
                         case '"' -> sb.append('"');
@@ -204,11 +231,7 @@ public final class MiniJson {
                         case 'r' -> sb.append('\r');
                         case 'b' -> sb.append('\b');
                         case 'f' -> sb.append('\f');
-                        case 'u' -> {
-                            String hex = s.substring(pos, pos + 4);
-                            pos += 4;
-                            sb.append((char) Integer.parseInt(hex, 16));
-                        }
+                        case 'u' -> sb.append(readUnicodeEscape());
                         default -> throw new JsonException("Bad escape: \\" + e);
                     }
                 } else {
@@ -216,6 +239,22 @@ public final class MiniJson {
                 }
             }
             return sb.toString();
+        }
+
+        private char readUnicodeEscape() {
+            if (pos + 4 > s.length()) {
+                throw new JsonException("Truncated unicode escape at " + pos);
+            }
+            int code = 0;
+            for (int i = 0; i < 4; i++) {
+                int digit = Character.digit(s.charAt(pos + i), 16);
+                if (digit < 0) {
+                    throw new JsonException("Bad unicode escape at " + pos);
+                }
+                code = code * 16 + digit;
+            }
+            pos += 4;
+            return (char) code;
         }
 
         private Number readNumber() {
@@ -227,8 +266,33 @@ public final class MiniJson {
                 } else break;
             }
             String token = s.substring(start, pos);
+            if (token.isEmpty()) {
+                throw new JsonException("Unexpected character '" + s.charAt(start)
+                        + "' at " + start);
+            }
+            boolean integral = token.indexOf('.') < 0
+                    && token.indexOf('e') < 0 && token.indexOf('E') < 0;
+            if (integral) {
+                try {
+                    long value = Long.parseLong(token);
+                    if (value >= Integer.MIN_VALUE && value <= Integer.MAX_VALUE) {
+                        return (int) value;
+                    }
+                    return value;
+                } catch (NumberFormatException overflow) {
+                    try {
+                        return new BigInteger(token);
+                    } catch (NumberFormatException e) {
+                        throw new JsonException("Bad number: " + token);
+                    }
+                }
+            }
             try {
-                return Double.parseDouble(token);
+                double d = Double.parseDouble(token);
+                if (Double.isInfinite(d)) {
+                    throw new JsonException("Number out of range: " + token);
+                }
+                return d;
             } catch (NumberFormatException e) {
                 throw new JsonException("Bad number: " + token);
             }
@@ -242,7 +306,16 @@ public final class MiniJson {
             return value;
         }
 
-        private char peek() { return s.charAt(pos); }
+        private void enter() {
+            if (++depth > MAX_DEPTH) {
+                throw new JsonException("JSON nesting exceeds " + MAX_DEPTH + " levels");
+            }
+        }
+
+        private char peek() {
+            if (atEnd()) throw new JsonException("Unexpected end of input");
+            return s.charAt(pos);
+        }
 
         private char next() {
             if (atEnd()) throw new JsonException("Unexpected end");

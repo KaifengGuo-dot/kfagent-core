@@ -1,12 +1,9 @@
 package io.github.kfagent.tool;
 
-import io.github.kfagent.json.MiniJson;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -22,8 +19,13 @@ import java.util.Map;
  * Tool t = MethodTool.of(new MyTools(), "weather");
  * }</pre>
  *
- * <p>参数类型目前支持 String / Integer / Long / Double / Boolean（够用了，
- * 真要复杂嵌套类型请直接实现 Tool 接口）。
+ * <p>参数类型目前支持 String / Integer / Long / Double / Float / Boolean 及其基本类型。
+ * 参数名来自 class 文件，必须用 {@code javac -parameters} 编译（Maven 下在
+ * maven-compiler-plugin 里配置 {@code <parameters>true</parameters>}），否则
+ * {@link #all(Object)} / {@link #of(Object, String)} 会直接报错，避免生成
+ * {@code arg0/arg1} 这种 LLM 看不懂的 schema。
+ *
+ * <p>真要复杂嵌套类型请直接实现 {@link Tool} 接口。
  */
 public final class MethodTool implements Tool {
 
@@ -64,33 +66,30 @@ public final class MethodTool implements Tool {
         ToolMethod ann = m.getAnnotation(ToolMethod.class);
         String name = ann.name().isEmpty() ? m.getName() : ann.name();
 
-        SchemaBuilder sb = SchemaBuilder.object();
-        Map<String, Object> props = new LinkedHashMap<>();
+        SchemaBuilder schema = SchemaBuilder.object();
         for (Parameter p : m.getParameters()) {
-            String pname = p.getName();
-            // 没开 -parameters 编译时，参数名是 arg0/arg1，这里就按顺序塞 required 提示
-            props.put(pname, javaTypeToSchema(p.getType()));
-            sb.required(pname);
+            if (!p.isNamePresent()) {
+                throw new IllegalStateException("@ToolMethod " + target.getClass().getName()
+                        + "#" + m.getName() + " has no parameter names in the class file; "
+                        + "compile with -parameters (Maven: <parameters>true</parameters> "
+                        + "for maven-compiler-plugin)");
+            }
+            schema.required(p.getName())
+                    .property(p.getName(), schemaFor(target, m, p.getType()));
         }
-        @SuppressWarnings("unchecked")
-        Map<String, Object> propMap = (Map<String, Object>)
-                sb.build().getOrDefault("properties", new LinkedHashMap<>());
-        propMap.putAll(props);
-        sb.build().put("properties", propMap);
-
-        return new MethodTool(target, m, new ToolSpec(name, ann.description(), sb.build()));
+        return new MethodTool(target, m, new ToolSpec(name, ann.description(), schema.build()));
     }
 
-    private static Map<String, Object> javaTypeToSchema(Class<?> t) {
-        Map<String, Object> m = new LinkedHashMap<>();
-        if (t == String.class) m.put("type", "string");
-        else if (t == int.class || t == Integer.class) m.put("type", "integer");
-        else if (t == long.class || t == Long.class) m.put("type", "integer");
-        else if (t == double.class || t == Double.class || t == float.class || t == Float.class)
-            m.put("type", "number");
-        else if (t == boolean.class || t == Boolean.class) m.put("type", "boolean");
-        else m.put("type", "string");
-        return m;
+    private static SchemaBuilder schemaFor(Object target, Method m, Class<?> type) {
+        if (type == String.class) return SchemaBuilder.string();
+        if (type == int.class || type == Integer.class
+                || type == long.class || type == Long.class) return SchemaBuilder.integer();
+        if (type == double.class || type == Double.class
+                || type == float.class || type == Float.class) return SchemaBuilder.number();
+        if (type == boolean.class || type == Boolean.class) return SchemaBuilder.bool();
+        throw new IllegalArgumentException("@ToolMethod " + target.getClass().getName()
+                + "#" + m.getName() + " has unsupported parameter type " + type.getName()
+                + "; use String/number/boolean or implement Tool directly");
     }
 
     @Override
@@ -98,12 +97,16 @@ public final class MethodTool implements Tool {
 
     @Override
     public String execute(Map<String, Object> args, ToolContext ctx) throws Exception {
+        Map<String, Object> actual = args == null ? Map.of() : args;
         Parameter[] ps = method.getParameters();
         Object[] realArgs = new Object[ps.length];
         for (int i = 0; i < ps.length; i++) {
             String pname = ps[i].getName();
-            Object v = args.get(pname);
-            realArgs[i] = coerce(v, ps[i].getType());
+            if (!actual.containsKey(pname) || actual.get(pname) == null) {
+                throw new IllegalArgumentException("missing required argument '" + pname
+                        + "' for tool " + spec.name());
+            }
+            realArgs[i] = coerce(actual.get(pname), ps[i].getType());
         }
         try {
             Object r = method.invoke(target, realArgs);
@@ -114,24 +117,22 @@ public final class MethodTool implements Tool {
         }
     }
 
-    private static Object coerce(Object v, Class<?> t) {
-        if (v == null) {
-            if (t == int.class || t == long.class) return 0;
-            if (t == double.class || t == float.class) return 0d;
-            if (t == boolean.class) return false;
-            return null;
+    private static Object coerce(Object v, Class<?> type) {
+        if (type == String.class) return v.toString();
+        if (type == boolean.class || type == Boolean.class) {
+            return v instanceof Boolean b ? b : Boolean.parseBoolean(v.toString().trim());
         }
-        if (t == String.class) return v.toString();
         if (v instanceof Number n) {
-            if (t == int.class || t == Integer.class) return n.intValue();
-            if (t == long.class || t == Long.class) return n.longValue();
-            if (t == double.class || t == Double.class) return n.doubleValue();
-            if (t == float.class || t == Float.class) return n.floatValue();
+            if (type == int.class || type == Integer.class) return n.intValue();
+            if (type == long.class || type == Long.class) return n.longValue();
+            if (type == float.class || type == Float.class) return n.floatValue();
+            return n.doubleValue();
         }
-        if (t == boolean.class || t == Boolean.class) {
-            if (v instanceof Boolean b) return b;
-            return Boolean.parseBoolean(v.toString());
-        }
-        return v;
+        // 模型偶尔会把数字写成字符串，这里宽松转换
+        String text = v.toString().trim();
+        if (type == int.class || type == Integer.class) return Integer.parseInt(text);
+        if (type == long.class || type == Long.class) return Long.parseLong(text);
+        if (type == float.class || type == Float.class) return Float.parseFloat(text);
+        return Double.parseDouble(text);
     }
 }
