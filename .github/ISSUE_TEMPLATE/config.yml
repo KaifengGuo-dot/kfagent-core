@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用问题 / 设计讨论
+    url: https://github.com/KaifengGuo-dot/kfagent-core/discussions
+    about: 不确定是不是 bug、想问怎么接自己的模型或存储，来这里。
+  - name: 安全漏洞
+    url: https://github.com/KaifengGuo-dot/kfagent-core/security/advisories/new
+    about: 请不要公开提 issue，走私密报告。

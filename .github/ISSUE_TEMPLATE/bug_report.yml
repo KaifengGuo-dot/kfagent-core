@@ -1,0 +1,83 @@
+name: Bug report
+description: 报告一个可以复现的问题
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请尽量提供最小复现，不要贴真实 API Key、内网地址或用户数据。
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么
+      description: 实际行为是什么，你期望的行为是什么
+      placeholder: 调用 agent.run(...) 后抛了异常 / 工具没有被调用 / 流式输出重复……
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 最小复现
+      description: 一段能独立运行的代码，或者一个最小仓库链接
+      render: java
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: kfagent-core 版本
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: jdk
+    attributes:
+      label: JDK 版本
+      options:
+        - "17"
+        - "21"
+        - "其他（请在补充里写）"
+    validations:
+      required: true
+
+  - type: input
+    id: provider
+    attributes:
+      label: 模型服务商 / 模型
+      placeholder: "DeepSeek / deepseek-chat，或本地 Ollama / qwen2.5"
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: 运行模式
+      options:
+        - "普通调用"
+        - "流式（streaming=true）"
+        - "带会话（conversationId）"
+        - "注解工具（@ToolMethod）"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 异常堆栈 / 请求响应
+      description: 记得把 API Key、内网地址打码
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 确认
+      options:
+        - label: 我搜索过已有 issue，没有重复
+          required: true
+        - label: 我使用的是最新版本
+          required: true
+        - label: 这不是安全问题（安全问题请走私密报告）
+          required: true
