@@ -71,7 +71,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.16.0</version>
                 <configuration>
                     <!-- 显式锁定 17，避免被全局 settings.xml 里的 compiler 属性覆盖 -->
                     <release>17</release>
