@@ -66,23 +66,37 @@
 
 ## 安装
 
-JDK 17+。Maven：
+JDK 17+。当前通过 JitPack 发布，Maven 需要先加仓库：
 
 ```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+
 <dependency>
-    <groupId>io.github.kfagent</groupId>
+    <groupId>com.github.KaifengGuo-dot</groupId>
     <artifactId>kfagent-core</artifactId>
-    <version>1.0.0</version>
+    <version>v1.0.0</version>
 </dependency>
 ```
 
 Gradle：
 
 ```groovy
-implementation 'io.github.kfagent:kfagent-core:1.0.0'
+repositories {
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    implementation 'com.github.KaifengGuo-dot:kfagent-core:v1.0.0'
+}
 ```
 
-> 1.0.0 还未发布到maven仓库，需要自行克隆到本地使用。
+> JitPack 首次拉取会按 tag 现场构建，通常需要几分钟，之后走缓存。
+> 如果不想依赖 JitPack，也可以 clone 后本地安装：
 >
 > ```bash
 > git clone https://github.com/KaifengGuo-dot/kfagent-core.git
@@ -90,7 +104,7 @@ implementation 'io.github.kfagent:kfagent-core:1.0.0'
 > mvn -DskipTests install
 > ```
 >
-> 发布进度、`io.github.kfagent` 命名空间验证的坑，都写在 [docs/RELEASING.md](docs/RELEASING.md)。
+> Maven Central 发布在准备中，坐标确定后会更新这里。
 
 ## 三行代码跑起来
 
