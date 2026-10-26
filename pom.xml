@@ -11,11 +11,51 @@
 
     <name>kfagent-core</name>
     <description>A zero-dependency Java Agent loop library. One dependency, instant agent.</description>
+    <url>https://github.com/KaifengGuo-dot/kfagent-core</url>
+    <inceptionYear>2026</inceptionYear>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>KaifengGuo-dot</id>
+            <name>郭凯峰</name>
+            <email>2568157027@qq.com</email>
+            <url>https://github.com/KaifengGuo-dot</url>
+            <roles>
+                <role>maintainer</role>
+            </roles>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/KaifengGuo-dot/kfagent-core.git</connection>
+        <developerConnection>scm:git:ssh://github.com/KaifengGuo-dot/kfagent-core.git</developerConnection>
+        <url>https://github.com/KaifengGuo-dot/kfagent-core</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/KaifengGuo-dot/kfagent-core/issues</url>
+    </issueManagement>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <!--
+            默认不生成 javadoc：Windows 中文用户名下，javadoc 插件生成的 @options
+            文件编码和子进程不一致，普通开发构建没必要踩这个坑。
+            发布时用 -Prelease-artifacts 或 -Pcentral 打开。
+        -->
+        <skipJavadoc>true</skipJavadoc>
     </properties>
 
     <!--
@@ -25,12 +65,59 @@
     -->
 
     <build>
+        <!-- 示例和离线自测放在 src/example 下，作为测试源码一起编译 -->
+        <testSourceDirectory>src/example/java</testSourceDirectory>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
+                <configuration>
+                    <!-- 显式锁定 17，避免被全局 settings.xml 里的 compiler 属性覆盖 -->
+                    <release>17</release>
+                    <!-- MethodTool 依赖参数名生成 schema，必须保留 -->
+                    <parameters>true</parameters>
+                </configuration>
             </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.6.3</version>
+                <executions>
+                    <execution>
+                        <id>enforce-build-env</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[17,)</version>
+                                </requireJavaVersion>
+                                <requireMavenVersion>
+                                    <version>[3.8,)</version>
+                                </requireMavenVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.5.1</version>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <!-- 给 JPMS 用户一个稳定的模块名，省得用自动生成的 jar 名 -->
+                            <Automatic-Module-Name>io.github.kfagent.core</Automatic-Module-Name>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
@@ -42,6 +129,77 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.12.0</version>
+                <configuration>
+                    <skip>${skipJavadoc}</skip>
+                    <!-- 注释里中文多，关掉 doclint，别让格式警告挡住发布 -->
+                    <doclint>none</doclint>
+                    <release>17</release>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals><goal>jar</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- CI / GitHub Release 用：生成 sources + javadoc jar -->
+        <profile>
+            <id>release-artifacts</id>
+            <properties>
+                <skipJavadoc>false</skipJavadoc>
+            </properties>
+        </profile>
+
+        <!-- 只有发布到 Maven Central 时才启用：mvn -Pcentral deploy -->
+        <profile>
+            <id>central</id>
+            <properties>
+                <skipJavadoc>false</skipJavadoc>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.12.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <!-- 先上传到 Central Portal，人工点 Publish，避免误发 -->
+                            <autoPublish>false</autoPublish>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals><goal>sign</goal></goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <!-- CI 里没有 tty，必须 loopback -->
+                            <gpgArguments>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

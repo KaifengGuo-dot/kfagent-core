@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Check tag matches pom version
+        run: |
+          VERSION=$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)
+          echo "pom version: $VERSION, tag: $GITHUB_REF_NAME"
+          if [ "v$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "tag $GITHUB_REF_NAME does not match v$VERSION"
+            exit 1
+          fi
+
+      - name: Build
+        run: mvn -B -DskipTests -Prelease-artifacts package
+
+      - name: Self-tests
+        run: |
+          java -cp "target/test-classes:target/classes" io.github.kfagent.core.AgentLoopSelfTest
+          java -cp "target/test-classes:target/classes" io.github.kfagent.llm.StreamingSelfTest
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            target/kfagent-core-*.jar \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes

@@ -31,5 +31,16 @@ desktop.ini
 # ---- Logs / env ----
 *.log
 *.env
-.env.local
+.env.*
+!.env.example
 api.key
+
+# ---- Secrets / signing ----
+*.gpg
+*.p12
+*.jks
+
+# ---- JVM crash dumps ----
+hs_err_pid*
+replay_pid*
+*.hprof

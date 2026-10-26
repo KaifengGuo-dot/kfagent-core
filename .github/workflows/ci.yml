@@ -5,25 +5,41 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         java: [ '17', '21' ]
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up JDK ${{ matrix.java }}
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
           cache: 'maven'
-      - name: Build with Maven
+
+      - name: Build
         run: mvn -B -DskipTests package
-      - name: Run offline self-test
-        run: |
-          mkdir -p target/example-classes
-          javac -cp target/classes -d target/example-classes $(find src/example -name "*.java")
-          java -cp "target/classes:target/example-classes" io.github.kfagent.core.AgentLoopSelfTest
+
+      - name: Build release artifacts
+        if: matrix.java == '17'
+        run: mvn -B -DskipTests -Prelease-artifacts package
+
+      - name: Run core self-test
+        run: java -cp "target/test-classes:target/classes" io.github.kfagent.core.AgentLoopSelfTest
+
+      - name: Run streaming self-test
+        run: java -cp "target/test-classes:target/classes" io.github.kfagent.llm.StreamingSelfTest
