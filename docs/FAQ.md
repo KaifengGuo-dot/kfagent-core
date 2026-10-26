@@ -169,5 +169,13 @@ JDK 17 刚好对齐，直接 `@Bean`，不需要 Starter。示例见 README 的
 
 ## 为什么 README 里的依赖下载不到？
 
-1.0.0 还在准备发 Maven Central。发布前先本地 `mvn install`，或者用 JitPack。
-具体步骤和命名空间验证的坑见 [docs/RELEASING.md](RELEASING.md)。
+先确认两件事：
+
+1. 有没有加 JitPack 仓库，也就是 `pom.xml` 里的 `<repositories>`；
+2. 本地 `~/.m2/settings.xml` 是不是配了 `<mirrorOf>*</mirrorOf>`。这种全量镜像会把
+   JitPack 也转到阿里云，表现就是“仓库明明加了却找不到”。换成只镜像 `central`
+   或者用一份空的 `settings.xml` 再试。
+
+JitPack 首次构建要一两分钟，返回 200 之前 `dependency:resolve` 会失败。如果 tag 对应
+的构建已经失败，JitPack 会缓存这个失败结果，得换新版本号。具体步骤见
+[docs/RELEASING.md](RELEASING.md)。
