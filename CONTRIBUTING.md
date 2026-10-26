@@ -24,7 +24,7 @@ java -cp "target/test-classes;target/classes" io.github.kfagent.core.AgentLoopSe
 java -cp "target/test-classes;target/classes" io.github.kfagent.llm.StreamingSelfTest
 ```
 
-要连真实模型时，用环境变量传 key，别写进代码。
+要连真实模型时，用环境变量传 key，不要写进代码。
 
 ## 提 PR 前
 
@@ -35,13 +35,13 @@ java -cp "target/test-classes;target/classes" io.github.kfagent.llm.StreamingSel
 5. 没有提交 API Key、内网地址、真实用户数据。
 6. public API 有 Javadoc，行为变化写进 `CHANGELOG.md`。
 
-PR 描述里写清楚：改了什么、为什么改、怎么验证的。截图和日志比“已测试”有用。
+PR 描述里写清楚：改了什么、为什么改、怎么验证的，附上截图或日志。
 
 ## Issue 怎么写
 
 - 想加新工具类型？说清楚业务场景，不要只给一个 API 设计。
 - 报 bug：贴最小复现、JDK 版本、模型服务商、完整异常堆栈。
-- 别上来就问“能不能接 LangChain4j”——这是有意不做的事。
+- LangChain4j 集成不在范围内，原因见 [FAQ](docs/FAQ.md#为什么不用-langchain4j--spring-ai)。
 - 安全问题不要公开提 issue，走 [SECURITY.md](SECURITY.md)。
 
 ## 行为准则

@@ -20,8 +20,6 @@
 - 上下文压缩、摘要、限流、重试；
 - Spring Boot Starter。
 
-边界越清楚，库越不容易长成自己不想要的样子。
-
 ## 2. 模块与依赖方向
 
 ```mermaid
@@ -104,7 +102,7 @@ sequenceDiagram
 - 不支持注解绑定、日期、枚举、复杂泛型；
 - 数字按大小解析成 `Integer` / `Long` / `BigInteger`，小数统一 `Double`；
 - 嵌套深度上限 512，防止畸形输入递归爆栈；
-- 性能不是强项，别拿它解析几十 MB 的日志。
+- 性能不是强项，不适合解析几十 MB 的日志。
 
 如果你的业务需要复杂 JSON，不要扩展 MiniJson。在自己的 `ConversationStore` 里用
 Jackson 存成自己的结构，读出来再转成 `ChatMessage` 即可。
@@ -147,7 +145,7 @@ ChatMessage.tool(callId, name, result);
 | LLM 返回非法 JSON | `LLMException` 直接抛 | 继续循环没有意义 |
 | 会话保存失败 | `IllegalStateException` | 明确告诉调用方“这一轮没存上” |
 
-工具异常只保留 message，不把整个堆栈回灌给模型——堆栈又长又贵，模型也看不懂。
+工具异常只保留 message，不把整个堆栈回灌给模型——堆栈又长又贵，对模型没有帮助。
 需要排查时用 `AgentListener.onToolCallEnd` 拿原始结果。
 
 ### 4.5 maxRounds 之后强制收尾
@@ -231,7 +229,7 @@ chunk 4: index=1, arguments="UTC"}
 | `LLMClient` | 接非 OpenAI 协议的模型 | 至少实现 `chat`；要真流式再覆写 `chatStream` |
 | `Tool` | 自定义工具 | 返回值要短；异常 message 会回灌给模型 |
 | `ConversationStore` | Redis / MongoDB / 数据库 | 原样存取，不要改写消息内容 |
-| `AgentListener` | 日志、指标、 tracing | 回调在调用线程，别阻塞 |
+| `AgentListener` | 日志、指标、 tracing | 回调在调用线程，不应阻塞 |
 | `ToolContext` | 向工具传业务上下文 | 只读 map，值需要自己保证线程安全 |
 
 不要扩展 `MiniJson` 和 `AgentRunner` 的内部实现。前者保持小，后者保持可读。
