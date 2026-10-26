@@ -40,7 +40,7 @@
 - 业务代码里能直接 `new` 一个 Agent，传一句话，拿回答案；
 - 模型能调我写好的 Java 方法，参数和返回值都是普通类型；
 - 支持流式输出，前端能逐字显示；
-- 多轮对话的历史我自己想存在哪儿就存在哪儿，定义了一个很薄的 SPI ， 库只定义接口，Redis、MongoDB、MySQL、文件、内存都能接，用哪个由我自行决定。
+- 多轮对话的历史自己决定存在哪儿，库只定义一层很薄的 SPI，Redis、MongoDB、MySQL、文件、内存都能接。
 - 不引入任何第三方依赖。
 
 于是有了 kfagent-core。核心 20 个类、1900 多行，只做上面这几件事。
@@ -48,7 +48,7 @@
 明确不做的：
 
 - 不做 RAG、向量库、文档解析；
-- 不做工作流 / 多 Agent 编排（如果想做的话可以把这个作为一个子agent）；
+- 不做工作流 / 多 Agent 编排；
 - 不做模型路由和 API 网关；
 - 不内置上下文压缩、摘要、限流、重试；
 - 不封装 Spring Boot Starter —— 一个 `@Bean` 就够了，见下文。
@@ -234,7 +234,7 @@ String a2 = agent.run("user-42", "我住在哪？");   // 自动带上上一轮�
 `agent.run(input)` 仍然是无状态的一次性调用；传了 id 但没配 `conversationStore`
 会直接抛 `IllegalStateException`，避免“以为记住了其实没记”。
 
-### 存储语义（很重要）
+### 存储语义
 
 - **不存 system prompt**。每次运行都用当前 Agent 配置重新拼 system，线上改提示词立即生效。
 - **只保存 user / assistant / tool 消息**。工具 schema 也不存，每次运行以当前 `tool(...)` 为准。
@@ -371,7 +371,7 @@ io.github.kfagent
 ├── tool          Tool / ToolSpec / ToolContext / SchemaBuilder / MethodTool / @ToolMethod
 ├── message       ChatMessage / Role
 ├── conversation  ConversationStore / InMemoryConversationStore / ConversationCodec
-└── json          MiniJson（手写的迷你 JSON，别学它，够用就行）
+└── json          MiniJson（手写的迷你 JSON 解析器）
 ```
 
 更细的设计取舍见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
@@ -414,7 +414,7 @@ Windows 下 classpath 分隔符用的是 `;`。
 - [ ] 更多可运行示例：Spring Boot、RAG、Redis 会话
 - [ ] 可选的 JSON 后端 SPI（默认仍然零依赖）
 
-有想要的特性先开 issue 聊场景，别直接提一个大 PR。
+有想要的特性先开 issue 聊场景。
 
 ## 常见问题
 

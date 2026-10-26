@@ -96,7 +96,7 @@ OpenAICompatClient.builder()
     .build();
 ```
 
-重试不要改库，包一层 `LLMClient`：
+重试不改库，包一层 `LLMClient`：
 
 ```java
 final class RetryingLLM implements LLMClient {
@@ -153,9 +153,9 @@ JDK 17 刚好对齐，直接 `@Bean`，不需要 Starter。示例见 README 的
 
 ## 能上生产吗？
 
-可以用，但目前还没有大规模生产验证。建议至少做这几件事：
+可以用，但目前还没有大规模生产验证。生产环境至少需要处理这几件事：
 
-- 锁定版本，别用 `LATEST`；
+- 锁定版本，不使用 `LATEST`；
 - 工具内部做权限校验和参数校验，高危操作加人工确认；
 - 给 `LLMClient` 包一层重试和超时；
 - 给会话存储配 TTL 和容量上限；
